@@ -1,0 +1,8 @@
+jobs:
+  build: # name of your job
+    machine: true # executor type
+
+    steps:
+      # Commands run in a Linux virtual machine environment
+      - checkout
+      - run: ./gradlew clean check

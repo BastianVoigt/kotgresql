@@ -1,3 +1,2 @@
 
-rootProject.name = "kodbc-postgresql"
-
+rootProject.name = "kotgresql"
