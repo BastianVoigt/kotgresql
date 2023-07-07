@@ -1,3 +1,5 @@
+[![CircleCI](https://circleci.com/gh/BastianVoigt/kotgresql.svg?style=shield)](https://circleci.com/gh/BastianVoigt/kotgresql)
+
 # KotgreSQL
 
 A PostgreSQL client library written in pure Kotlin, made for use with Coroutines
