@@ -50,7 +50,10 @@ This is why KotgreSQL is built and designed from the ground up for use with Post
 
 ```kotlin
 val postgresClient = PostgresClient(
-  host = "localhost", database = "mydb", username = "me", password = "XXX"
+  host = "localhost", 
+  database = "mydb", 
+  username = "me", 
+  password = "XXX"
 )
 ```
 
@@ -62,7 +65,7 @@ val postgresClient = PostgresClient(
      val price: Int
  )
 
- postgresClient.connect().use { connection ->
+ postgresClient.withConnection { connection ->
      val bicycles = connection
          .executeQuery("select id,name,price from bicycles")
          .mapTo<Bicycle>()
@@ -72,7 +75,7 @@ val postgresClient = PostgresClient(
 ### Prepared statement with placeholders
 
 ```kotlin    
-postgresClient.connect().use { connection ->
+postgresClient.withConnection { connection ->
     connection.prepareStatement("""
         select id,name,price from bicycle 
         where name = $1 

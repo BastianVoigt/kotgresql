@@ -1,6 +1,8 @@
 package kotgresql.core
 
-import kotlinx.coroutines.runBlocking
+import kotgresql.core.impl.PostgresClient
+import kotgresql.core.impl.withConnection
+import kotlinx.coroutines.test.runTest
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.assertThat
 import org.junit.jupiter.api.AfterAll
@@ -36,8 +38,8 @@ class Postgres15Test {
 
   @Test
   fun `should execute simple queries and return correct results`() {
-    runBlocking {
-      postgresClient.connect().use { connection ->
+    runTest {
+      postgresClient.withConnection { connection ->
         try {
           assertThat(
             connection.executeUpdate("create table aij(id serial primary key, name varchar);"),
@@ -70,17 +72,17 @@ class Postgres15Test {
 
   @Test
   fun `should execute prepared statements with and without parameters`() {
-    runBlocking {
-      postgresClient.connect().use { connection ->
+    runTest {
+      postgresClient.withConnection { connection ->
         try {
           connection.executeUpdate(
             """
-                            create table aij(id serial primary key, name varchar);
-                            insert into aij(name) values ('Hans Meiser');
-                            insert into aij(name) values ('Brigitte Bardot');
-                            insert into aij(name) values ('Sabine Leutheuser-Schnarrenberger');
-                            insert into aij(name) values ('Popsipil');
-                            insert into aij(name) values ('qwertz');
+              create table aij(id serial primary key, name varchar);
+              insert into aij(name) values ('Hans Meiser');
+              insert into aij(name) values ('Brigitte Bardot');
+              insert into aij(name) values ('Sabine Leutheuser-Schnarrenberger');
+              insert into aij(name) values ('Popsipil');
+              insert into aij(name) values ('qwertz');
             """.trimIndent()
           )
           connection.prepareStatement("select id, name from aij where name=$1").use { stmt ->
@@ -107,21 +109,51 @@ class Postgres15Test {
   }
 
   @Test
-  fun `should return different data types and null values`() {
-    runBlocking {
-      postgresClient.connect().use { connection ->
+  fun `should execute prepared update statement without results`() {
+    runTest {
+      postgresClient.withConnection { connection ->
         try {
           connection.executeUpdate(
             """
-                            create table aij(
-                              id serial primary key, 
-                              name varchar not null,
-                              age int,
-                              intelligence bigint,
-                              consent boolean not null
-                            );
-                            insert into aij(name,age,intelligence,consent) values ('Hans', 42, 12345678910, true);
-                            insert into aij(name, consent) values ('Mathilda', false);
+              create table aij(id serial primary key, name varchar);
+              insert into aij(name) values ('Hans Meiser');
+            """.trimIndent()
+          )
+          connection.prepareStatement("update aij set name=$1 where name=$2").use { stmt ->
+            assertThat(
+              stmt.executeUpdate("Popsipil", "Hans Meiser"),
+              equalTo(1)
+            )
+            assertThat(
+              stmt.executeUpdate("Noppes Pa", "Popsipil"),
+              equalTo(1)
+            )
+          }
+        } finally {
+          connection.executeUpdate(
+            "drop table aij;"
+          )
+        }
+      }
+    }
+  }
+
+  @Test
+  fun `should return different data types and null values`() {
+    runTest {
+      postgresClient.withConnection { connection ->
+        try {
+          connection.executeUpdate(
+            """
+              create table aij(
+                id serial primary key, 
+                name varchar not null,
+                age int,
+                intelligence bigint,
+                consent boolean not null
+              );
+              insert into aij(name,age,intelligence,consent) values ('Hans', 42, 12345678910, true);
+              insert into aij(name, consent) values ('Mathilda', false);
             """.trimIndent()
           )
           connection.executeQuery(
@@ -161,20 +193,20 @@ class Postgres15Test {
 
   @Test
   fun `should return field types`() {
-    runBlocking {
-      postgresClient.connect().use { connection ->
+    runTest {
+      postgresClient.withConnection { connection ->
         try {
           connection.executeUpdate(
             """
-                            create table aij(
-                              id serial primary key, 
-                              name varchar not null,
-                              age int,
-                              intelligence bigint,
-                              consent boolean not null,
-                              data jsonb not null
-                            );
-                            insert into aij(name,age,intelligence,consent,data) values ('Hans', 42, 12345678910, true, '{"Hello": "World"}'::jsonb);
+              create table aij(
+                id serial primary key, 
+                name varchar not null,
+                age int,
+                intelligence bigint,
+                consent boolean not null,
+                data jsonb not null
+              );
+              insert into aij(name,age,intelligence,consent,data) values ('Hans', 42, 12345678910, true, '{"Hello": "World"}'::jsonb);
             """.trimIndent()
           )
           connection.executeQuery("select * from aij").use { resultSet ->
@@ -207,14 +239,14 @@ class Postgres15Test {
       val name: String,
       val age: Long
     )
-    runBlocking {
+    runTest {
       postgresClient.connect().use { connection ->
         try {
           connection.executeUpdate(
             """
-                    create table mytable(id serial primary key, name varchar not null, age bigint not null);
-                    insert into mytable(name,age) values ('Hans Meiser', 134567654);
-                    insert into mytable(name,age) values ('Sandra Maischberger', 34672634);
+              create table mytable(id serial primary key, name varchar not null, age bigint not null);
+              insert into mytable(name,age) values ('Hans Meiser', 134567654);
+              insert into mytable(name,age) values ('Sandra Maischberger', 34672634);
             """.trimIndent()
           )
           val result = connection.executeQuery("select id,name,age from mytable")
@@ -234,6 +266,43 @@ class Postgres15Test {
           } catch (e: Exception) {
             e.printStackTrace()
           }
+        }
+      }
+    }
+  }
+
+  private inline fun <reified T : Exception> assertThrows(handler: () -> Any): T {
+    try {
+      handler()
+      throw AssertionError("Expected ${T::class.qualifiedName} was not thrown")
+    } catch (exception: Throwable) {
+      if (exception is T) {
+        return exception
+      }
+      throw exception
+    }
+  }
+
+  @Test
+  fun `should rollback transaction when an exception is thrown`() {
+    runTest {
+      postgresClient.withConnection { connection ->
+        connection.executeUpdate(
+          """create table mytable(id serial primary key, name varchar not null, age bigint not null);"""
+        )
+        try {
+          val exception = assertThrows<KotgresException> {
+            connection.inTransaction {
+              connection.executeUpdate("insert into mytable(name,age) values ('Bastian', 43)")
+              throw Exception("Miserable failure")
+            }
+          }
+          assertThat(exception.message, equalTo("Transaction rolled back"))
+          assertThat(exception.cause?.message, equalTo("Miserable failure"))
+          val count = connection.executeQuery("select count(*) from mytable").singleResult { it.getLong(0) }
+          assertThat(count, equalTo(0))
+        } finally {
+          connection.executeUpdate("drop table mytable")
         }
       }
     }

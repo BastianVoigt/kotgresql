@@ -1,5 +1,6 @@
 package kotgresql.core
 
+import kotgresql.core.impl.PostgresClient
 import kotlinx.coroutines.runBlocking
 import org.hamcrest.CoreMatchers
 import org.hamcrest.MatcherAssert

@@ -1,9 +1,9 @@
 package kotgresql.core.auth
 
-import kotgresql.core.BufferedConnection
 import kotgresql.core.NegotiateProtocolVersionMessage
 import kotgresql.core.PostgresErrorResponseException
 import kotgresql.core.ProtocolErrorException
+import kotgresql.core.impl.BufferedConnection
 import java.nio.charset.Charset
 import java.sql.SQLException
 

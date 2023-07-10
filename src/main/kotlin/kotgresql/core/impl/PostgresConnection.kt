@@ -1,13 +1,28 @@
-package kotgresql.core
+package kotgresql.core.impl
 
+import kotgresql.core.FieldDescription
+import kotgresql.core.FormatCode
+import kotgresql.core.KotgresConnection
+import kotgresql.core.KotgresPreparedStatement
+import kotgresql.core.KotgresResultSet
+import kotgresql.core.KotgresqlRow
+import kotgresql.core.PostgresErrorResponseException
+import kotgresql.core.ProtocolErrorException
 import java.nio.charset.Charset
 import java.sql.SQLException
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.ZoneOffset.UTC
+import java.time.format.DateTimeFormatter
 import java.util.*
 import kotlin.reflect.KClass
 
 class PostgresConnection(
   val bufferedConnection: BufferedConnection
 ) : KotgresConnection {
+  companion object {
+    private val dateTimeFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS")
+  }
   private var backendProcessId: Int? = null
   private var backendSecretKey: Int? = null
   var encoding: Charset = Charsets.UTF_8
@@ -228,6 +243,7 @@ class PostgresConnection(
     }
 
     override suspend fun executeQuery(vararg parameters: Any): KotgresResultSet {
+      readyForQuery = false
       bufferedConnection.prepareForSending()
       if (!parsed) {
         sendParseMessageWithoutFlush(sql, preparedStatementName = name)
@@ -309,6 +325,7 @@ class PostgresConnection(
         val bytes = when (it) {
           is String -> it.toByteArray(encoding)
           is Number -> it.toString().toByteArray(encoding)
+          is Instant -> dateTimeFormat.format(OffsetDateTime.ofInstant(it, UTC)).toByteArray(encoding)
 
           else -> {
             throw SQLException("Unknown parameter type ${it.javaClass}")
@@ -365,16 +382,23 @@ class PostgresConnection(
           if (remainingLength != 0) {
             throw ProtocolErrorException("Message not terminated correctly")
           }
-          affectedRows = if (completedCommand == "CREATE TABLE" || completedCommand == "DROP TABLE") {
+          val space = completedCommand.indexOf(' ')
+          affectedRows = if (space == -1) {
             0
           } else {
-            val space = completedCommand.indexOf(' ')
-            val word = completedCommand.substring(0, space)
-            if (word == "INSERT") {
-              val secondSpace = completedCommand.indexOf(' ', space + 1)
-              completedCommand.substring(secondSpace + 1).toInt()
-            } else {
-              completedCommand.substring(space + 1).toInt()
+            when (completedCommand.substring(0, space)) {
+              "INSERT" -> {
+                val secondSpace = completedCommand.indexOf(' ', space + 1)
+                completedCommand.substring(secondSpace + 1).toInt()
+              }
+
+              "UPDATE", "DELETE" -> {
+                completedCommand.substring(space + 1).toInt()
+              }
+
+              else -> {
+                0
+              }
             }
           }
           false
@@ -491,6 +515,7 @@ class PostgresConnection(
         69 -> {
           // ErrorMessage
           val errorMessage = bufferedConnection.readErrorResponse(length - 4, encoding)
+          readyForQuery = true
           throw PostgresErrorResponseException(errorMessage)
         }
 

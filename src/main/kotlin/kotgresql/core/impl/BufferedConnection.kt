@@ -1,5 +1,7 @@
-package kotgresql.core
+package kotgresql.core.impl
 
+import kotgresql.core.ErrorResponse
+import kotgresql.core.ProtocolErrorException
 import kotgresql.core.nio.AsyncSocket
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer

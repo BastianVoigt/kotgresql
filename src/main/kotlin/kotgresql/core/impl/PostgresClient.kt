@@ -1,4 +1,4 @@
-package kotgresql.core
+package kotgresql.core.impl
 
 import kotgresql.core.auth.AuthenticationProcessor
 import java.net.InetSocketAddress
@@ -46,5 +46,11 @@ class PostgresClient(
     bufferedConnection.put(0)
     bufferedConnection.put(0)
     bufferedConnection.flush()
+  }
+}
+
+suspend inline fun <reified T> PostgresClient.withConnection(handler: (PostgresConnection) -> T): T {
+  connect().use { connection ->
+    return handler(connection)
   }
 }

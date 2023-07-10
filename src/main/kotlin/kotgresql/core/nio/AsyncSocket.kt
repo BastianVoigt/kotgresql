@@ -9,7 +9,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 class AsyncSocket {
-  val socket = AsynchronousSocketChannel.open()
+  private val socket = AsynchronousSocketChannel.open()
 
   suspend fun connect(remote: SocketAddress) {
     suspendCancellableCoroutine { cont ->
