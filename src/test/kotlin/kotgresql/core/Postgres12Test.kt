@@ -1,6 +1,6 @@
 package kotgresql.core
 
-import kotgresql.core.impl.PostgresClient
+import kotgresql.core.impl.KotgresqlClient
 import kotlinx.coroutines.runBlocking
 import org.hamcrest.CoreMatchers
 import org.hamcrest.MatcherAssert
@@ -28,7 +28,7 @@ class Postgres12Test {
     }
   }
 
-  private val postgresClient = PostgresClient(
+  private val postgresClient = KotgresqlClient(
     host = postgreSQLContainer.host,
     port = postgreSQLContainer.getMappedPort(postgreSQLContainer.exposedPorts[0]),
     username = postgreSQLContainer.username,

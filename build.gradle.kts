@@ -40,6 +40,9 @@ configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
 }
 
 publishing {
+  repositories {
+    mavenCentral()
+  }
   publications {
     create<MavenPublication>("mavenJava") {
       pom {

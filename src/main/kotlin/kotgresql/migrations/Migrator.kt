@@ -1,13 +1,13 @@
 package kotgresql.migrations
 
-import kotgresql.core.impl.PostgresClient
-import kotgresql.core.impl.withConnection
+import kotgresql.core.impl.KotgresqlClient
 import kotgresql.core.inTransaction
 import kotgresql.core.singleResult
+import kotgresql.core.withConnection
 import java.time.Instant
 
 class Migrator(
-  private val postgresClient: PostgresClient,
+  private val postgresClient: KotgresqlClient,
   private val schema: String = "public"
 ) {
   suspend fun migrate(migrations: List<Migration>) {

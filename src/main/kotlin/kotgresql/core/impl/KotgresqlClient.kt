@@ -1,18 +1,19 @@
 package kotgresql.core.impl
 
+import kotgresql.core.KotgresConnectionFactory
 import kotgresql.core.auth.AuthenticationProcessor
 import java.net.InetSocketAddress
 import kotlin.text.Charsets.UTF_8
 
-class PostgresClient(
+class KotgresqlClient(
   private val host: String,
   private val port: Int = 5432,
   private val username: String,
   private val password: String,
   private val databaseName: String,
   private val bufferSize: Int = 4096
-) {
-  suspend fun connect(): PostgresConnection {
+) : KotgresConnectionFactory {
+  override suspend fun connect(): PostgresConnection {
     val bufferedConnection = BufferedConnection(bufferSize)
     bufferedConnection.connect(InetSocketAddress(host, port))
     sendStartupMessage(bufferedConnection)
@@ -46,11 +47,5 @@ class PostgresClient(
     bufferedConnection.put(0)
     bufferedConnection.put(0)
     bufferedConnection.flush()
-  }
-}
-
-suspend inline fun <reified T> PostgresClient.withConnection(handler: (PostgresConnection) -> T): T {
-  connect().use { connection ->
-    return handler(connection)
   }
 }
